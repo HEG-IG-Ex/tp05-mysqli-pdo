@@ -1,90 +1,77 @@
 <?php
-    class Calculatrice
-    {
-        // Properties
-        protected $nb1;
-        protected $nb2;
+// TODO: Transfer to env files
+define("DB_HOST", "localhost");
+define("DB_USER", "root");
+define("DB_PSW", "");
+define("DB_NAME", "npa");
 
-        function __construct($n1, $n2)
-        {
-            $this->nb1 = $n1;
-            $this->nb2 = $n2;
-        }
+function test_input($data)
+{
+    $data = trim($data);
+    $data = stripslashes($data);
+    $data = htmlspecialchars($data);
+    return $data;
+}
 
-        // Methods
-        function add()
-        {
-            return $this->nb1 + $this->nb2;
-        }
-        function substract()
-        {
-            return $this->nb1 - $this->nb2;
-        }
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
-        function multiply()
-        {
-            return $this->nb1 * $this->nb2;
-        }
 
-        function divide()
-        {
-            return $this->nb1 / $this->nb2;
-        }
+    if (isset($_POST["search"])) {
+        $search = test_input($_POST["search"]) . "%";
+    } else {
+        throw new ValueError("Search field not set");
     }
 
+    try {
 
-    class CalculatriceAvancee extends Calculatrice
-    {
-        function modulo()
-        {
-            return $this->nb1 % $this->nb2;
+        /************************* CONNECTION *******************************/
+
+        /* activate reporting */
+        $driver = new mysqli_driver();
+        $driver->report_mode = MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT;
+
+        /* if the connection fails, a mysqli_sql_exception will be thrown */
+        $mysqli = new mysqli(DB_HOST, DB_USER, DB_PSW, DB_NAME);
+
+        //No Exceptions were thrown, we connected successfully, yay!
+        echo "Success, we connected without failure! <br />";
+        echo "Connection Info: " . $mysqli->host_info  . PHP_EOL . "\n\r<br>";
+
+
+        /************************* QUERY *******************************/
+
+        /* create a prepared statement */
+        $stmt = $mysqli->prepare("SELECT * FROM npa WHERE npa_localite LIKE ?");
+
+        /* bind parameters for markers */
+        $stmt->bind_param("s", $search);
+
+        /* execute statement */
+        $stmt->execute();
+
+        /* Get result */
+        $result = $stmt->get_result();
+
+        /* Control if result not empty */
+        if($result->num_rows == 0){throw new ValueError("No District Found");}
+
+        /* fetch associative array & display */
+        while ($row = $result->fetch_assoc()) {
+            printf("%s (%s) - %s\n\r<br>", $row["npa_id"], $row["npa_code"], $row["npa_localite"]);
         }
-
-        function pow()
-        {
-            return pow($this->nb1,$this->nb2);
-        }
-
-        public static function brand() {
-            echo "Texas Instrument";
-        }
-    }    
-
-
-    // define variables and set to empty values
-    $nb1 = $nb2 = 0;
-
-    function test_input($data)
-    {
-        $data = trim($data);
-        $data = stripslashes($data);
-        $data = htmlspecialchars($data);
-        return $data;
+        
+    } catch (mysqli_sql_exception $e) {
+        echo "SQL Exceptions";
+        error_log($e->__toString());
+    } catch (ValueError $e) {
+        echo "Value Exceptions";
+        error_log($e->__toString());
+    } catch (Exception $e) {
+        echo "General Exceptions";
+        error_log($e->__toString());
+    } finally {
+        $mysqli->close();
+        exit();
     }
 
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
-        $nb1 = test_input($_POST["nb1"]);
-        $nb2 = test_input($_POST["nb2"]);
-
-        $calc = new Calculatrice($nb1, $nb2);
-        $calcAdvanced = new CalculatriceAvancee($nb1, $nb2);
-
-        if (isset($_POST['+'])) {
-            echo $calc->add();
-        } else if (isset($_POST['-'])){
-            echo $calc->substract();
-        } else if (isset($_POST['/'])){
-            echo $calc->divide();
-        } else if (isset($_POST['*'])){
-            echo $calc->multiply();
-        } else if (isset($_POST['%'])){
-            echo $calcAdvanced->modulo();
-        } else if (isset($_POST['^'])){
-            echo $calcAdvanced->pow();
-        } else if (isset($_POST['brand'])){
-            echo $calcAdvanced::brand();
-        }
-
-    }
-?>
+}
