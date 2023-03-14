@@ -1,63 +1,36 @@
 <?php
-// TODO: Transfer constant to env files
-// TODO: separate code into a functions.php and make a simple call for each methods instead of inserting all the code here
-define("DB_HOST", "localhost");
-define("DB_USER", "root");
-define("DB_PSW", "");
-define("DB_NAME", "npa");
-define("DB_DSN", "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME);
-define("LOG_FILE", "C:/xampp/htdocs/WebProjects/TP05/errors.log");
-define("SRCH_BY_LOC_QUERY", "SELECT * FROM npa WHERE npa_localite LIKE ?");
-define("SRCH_BY_NPA_QUERY", "SELECT * FROM npa WHERE npa_code LIKE ?");
+    require_once("./dao.php");
+    require_once("./table.php");
 
+    define("SRCH_BY_LOC_QUERY", "SELECT * FROM npa WHERE npa_localite LIKE ?");
+    define("SRCH_BY_NPA_QUERY", "SELECT * FROM npa WHERE npa_code LIKE ?");
 
-class TableRows extends RecursiveIteratorIterator
-{
-    function __construct($it)
+    
+    function test_input($data)
     {
-        parent::__construct($it, self::LEAVES_ONLY);
+        $data = trim($data);
+        $data = stripslashes($data);
+        $data = htmlspecialchars($data);
+        return $data;
     }
 
-    public function current()
-    {
-        return "<td>" . parent::current() . "</td>";
-    }
-
-    public function beginChildren()
-    {
-        echo "<tr>";
-    }
-
-    public function endChildren()
-    {
-        echo "</tr>" . "\n";
-    }
-}
-
-function test_input($data)
-{
-    $data = trim($data);
-    $data = stripslashes($data);
-    $data = htmlspecialchars($data);
-    return $data;
-}
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
-    if (isset($_POST["search"])) {
-        $search = test_input($_POST["search"]);
-        if(is_numeric($search)){
-            $query = SRCH_BY_NPA_QUERY;
+        if (isset($_POST["search"])) {
+            $search = test_input($_POST["search"]);
+            if (is_numeric($search)) {
+                $query = SRCH_BY_NPA_QUERY;
+            } else {
+                $query = SRCH_BY_LOC_QUERY;
+            }
+            $search .= "%";
         } else {
-            $query = SRCH_BY_LOC_QUERY;
+            throw new ValueError("Search field not set");
         }
-        $search .= "%";
-
-    } else {
-        throw new ValueError("Search field not set");
     }
-}
+
+
 ?>
 
 <!DOCTYPE html>
@@ -106,68 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="row g-3">
                 <?php
                 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-
-                    try {
-
-                        /************************* MYSQLI CONNECTION *******************************/
-
-                        /* activate reporting */
-                        $driver = new mysqli_driver();
-                        $driver->report_mode = MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT;
-
-                        /* if the connection fails, a mysqli_sql_exception will be thrown */
-                        $mysqli = new mysqli(DB_HOST, DB_USER, DB_PSW, DB_NAME);
-
-                        //No Exceptions were thrown, we connected successfully, yay!
-                        echo "Success, we connected without failure!" . PHP_EOL . "</br>";
-                        echo "Connection Info: " . $mysqli->host_info  . PHP_EOL . "</br>";
-
-
-                        /************************* MYSQLI QUERY *******************************/
-
-                        /* create a prepared statement */
-                        $stmt = $mysqli->prepare($query);
-
-                        /* bind parameters for markers */
-                        $stmt->bind_param("s", $search);
-
-                        /* execute statement */
-                        $stmt->execute();
-
-                        /* Get result */
-                        $result = $stmt->get_result();
-
-                        /* Control if result not empty */
-                        if ($result->num_rows == 0) {
-                            throw new ValueError("No District Found");
-                        }
-
-                        $rows = $result->fetch_all(MYSQLI_ASSOC);
-                        foreach ($rows as &$row) {
-                            $row["links"] = "<a href='https://www.google.ch/?q=".$row['npa_localite']."'>https://www.google.ch/?q=".$row['npa_localite']."</a>";
-                        }
-
-                        echo "<table>" . PHP_EOL;
-                        echo "<tr><th>Id</th><th>Npa</th><th>Locality</th><th>Search Links</th></tr>" . PHP_EOL;
-
-                        /* fetch associative array & display */
-                        foreach (new TableRows(new RecursiveArrayIterator($rows)) as $k => $v) {
-                            echo $v;
-                        }
-
-                        echo "</table>";
-                    } catch (mysqli_sql_exception $e) {
-                        echo "SQL Exceptions";
-                        error_log($e->__toString(), 3, LOG_FILE);
-                    } catch (ValueError $e) {
-                        echo "Value Exceptions";
-                        error_log($e->__toString(), 3, LOG_FILE);
-                    } catch (Exception $e) {
-                        echo "General Exceptions";
-                        error_log($e->__toString(), 3, LOG_FILE);
-                    } finally {
-                        $mysqli->close();
-                    }
+                    $rows = fetch_records_mysqli($query, $search);
+                    generate_table($rows);
                 }
                 ?>
             </div>
@@ -182,45 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             <div class="row g-3">
                 <?php
                 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                    try {
-                        /************************* PDO CONNECTION *******************************/
-
-                        $pdo = new PDO(DB_DSN, DB_USER, DB_PSW);
-                        // set the PDO error mode to exception
-                        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-                        //No Exceptions were thrown, we connected successfully, yay!
-                        echo "Success, we connected without failure! " . PHP_EOL . "</br>";
-                        echo "Connection Info: " . $pdo->getAttribute(constant("PDO::ATTR_SERVER_INFO"))  . PHP_EOL . "</br>";
-
-
-                        /************************* PDO QUERY *******************************/
-
-                        // prepare sql and bind parameters
-                        $stmt = $pdo->prepare($query);
-                        $stmt->bindParam(1, $search, PDO::PARAM_STR);
-                        $stmt->execute();
-
-                        echo "<table>" . PHP_EOL;
-                        echo "<tr><th>Id</th><th>Npa</th><th>Locality</th><th>Search Links</th></tr>" . PHP_EOL;
-
-                        // Add a new column to each row
-                        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                        foreach ($rows as &$row) {
-                            $row["links"] = "<a href='https://www.google.ch/?q=".$row['npa_localite']."'>https://www.google.ch/?q=".$row['npa_localite']."</a>";
-                        }
-
-                        foreach (new TableRows(new RecursiveArrayIterator($rows)) as $k => $v) {
-                            echo $v;
-                        }
-
-                        echo "</table>" . PHP_EOL;
-                    } catch (PDOException $e) {
-                        echo "SQL Exceptions";
-                        error_log($e->__toString(), 3, LOG_FILE);
-                    } finally {
-                        $pdo = null;
-                    }
+                    $rows = fetch_records_pdo($query, $search);
+                    generate_table($rows);
                 }
                 ?>
             </div>
