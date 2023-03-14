@@ -7,6 +7,8 @@ define("DB_PSW", "");
 define("DB_NAME", "npa");
 define("DB_DSN", "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME);
 define("LOG_FILE", "C:/xampp/htdocs/WebProjects/TP05/errors.log");
+define("SRCH_BY_LOC_QUERY", "SELECT * FROM npa WHERE npa_localite LIKE ?");
+define("SRCH_BY_NPA_QUERY", "SELECT * FROM npa WHERE npa_code LIKE ?");
 
 
 class TableRows extends RecursiveIteratorIterator
@@ -44,7 +46,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
     if (isset($_POST["search"])) {
-        $search = test_input($_POST["search"]) . "%";
+        $search = test_input($_POST["search"]);
+        if(is_numeric($search)){
+            $query = SRCH_BY_NPA_QUERY;
+        } else {
+            $query = SRCH_BY_LOC_QUERY;
+        }
+        $search .= "%";
+
     } else {
         throw new ValueError("Search field not set");
     }
@@ -117,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         /************************* MYSQLI QUERY *******************************/
 
                         /* create a prepared statement */
-                        $stmt = $mysqli->prepare("SELECT * FROM npa WHERE npa_localite LIKE ?");
+                        $stmt = $mysqli->prepare($query);
 
                         /* bind parameters for markers */
                         $stmt->bind_param("s", $search);
@@ -183,8 +192,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         /************************* PDO QUERY *******************************/
 
                         // prepare sql and bind parameters
-                        $stmt = $pdo->prepare("SELECT * FROM npa WHERE npa_localite LIKE :search_string");
-                        $stmt->bindParam(':search_string', $search);
+                        $stmt = $pdo->prepare($query);
+                        $stmt->bindParam(1, $search, PDO::PARAM_STR);
                         $stmt->execute();
 
                         echo "<table>" . PHP_EOL;
