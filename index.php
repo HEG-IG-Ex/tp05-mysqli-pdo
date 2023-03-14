@@ -96,21 +96,10 @@
                 <?php
                 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     $rows = fetch_records_pdo($query, $search);
-                    generate_table($rows);
+                     generate_table($rows);
                 }
                 ?>
             </div>
-
-
-            <div class="row g-3">
-                <hr>
-                <h2>Exercice 3 - Search Google</h2>
-            </div>
-
-            <div class="row g-3">
-
-            </div>
-
 
         </form>
     </div>

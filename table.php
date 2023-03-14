@@ -35,6 +35,8 @@ function generate_table($rows){
     foreach (new TableRows(new RecursiveArrayIterator($rows)) as $k => $v) {
         echo $v;
     }
+
+    echo "</table>";
 }
 
        
