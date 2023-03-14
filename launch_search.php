@@ -2,6 +2,7 @@
 // TODO: Transfer to env files
 define("DB_HOST", "localhost");
 define("DB_USER", "root");
+define("DB_DSN", "mysql:host=".DB_HOST.";dbname=".DB_NAME);
 define("DB_PSW", "");
 define("DB_NAME", "npa");
 
@@ -24,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     try {
 
-        /************************* CONNECTION *******************************/
+        /************************* MYSQLI CONNECTION *******************************/
 
         /* activate reporting */
         $driver = new mysqli_driver();
@@ -38,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         echo "Connection Info: " . $mysqli->host_info  . PHP_EOL . "\n\r<br>";
 
 
-        /************************* QUERY *******************************/
+        /************************* MYSQLI QUERY *******************************/
 
         /* create a prepared statement */
         $stmt = $mysqli->prepare("SELECT * FROM npa WHERE npa_localite LIKE ?");
@@ -55,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         /* Control if result not empty */
         if($result->num_rows == 0){throw new ValueError("No District Found");}
 
-        /* fetch associative array & display */
+        /* fetch associative array & displayg */
         while ($row = $result->fetch_assoc()) {
             printf("%s (%s) - %s\n\r<br>", $row["npa_id"], $row["npa_code"], $row["npa_localite"]);
         }
@@ -72,6 +73,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } finally {
         $mysqli->close();
         exit();
+    }
+
+    try{
+         /************************* PDO CONNECTION *******************************/
+
+         $pdo = new PDO(DB_DSN, DB_USER, DB_PSW);
+         // set the PDO error mode to exception
+         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+ 
+         //No Exceptions were thrown, we connected successfully, yay!
+         echo "Success, we connected without failure! <br />";
+         echo "Connection Info: " . $pdo->getAttribute(constant("PDO::ATTR_SERVER_INFO"))  . PHP_EOL . "\n\r<br>";
+ 
+ 
+         /************************* PDO QUERY *******************************/
+
+        // prepare sql and bind parameters
+        $stmt = $pdo->prepare("SELECT * FROM npa WHERE npa_localite LIKE :search_string");
+        $stmt->bindParam(':search_string', $search);
+        $stmt->execute();
+
+    } catch (PDOException $e) {
+        echo "SQL Exceptions";
+        error_log($e->__toString());
+    } finally {
+        $pdo=null;
     }
 
 }
