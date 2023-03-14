@@ -142,11 +142,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             throw new ValueError("No District Found");
                         }
 
+                        $rows = $result->fetch_all(MYSQLI_ASSOC);
+                        foreach ($rows as &$row) {
+                            $row["links"] = "<a href='https://www.google.ch/?q=".$row['npa_localite']."'>https://www.google.ch/?q=".$row['npa_localite']."</a>";
+                        }
+
                         echo "<table>" . PHP_EOL;
-                        echo "<tr><th>Id</th><th>Npa</th><th>Locality</th></tr>" . PHP_EOL;
+                        echo "<tr><th>Id</th><th>Npa</th><th>Locality</th><th>Search Links</th></tr>" . PHP_EOL;
 
                         /* fetch associative array & display */
-                        foreach (new TableRows(new RecursiveArrayIterator($result->fetch_all(MYSQLI_ASSOC))) as $k => $v) {
+                        foreach (new TableRows(new RecursiveArrayIterator($rows)) as $k => $v) {
                             echo $v;
                         }
 
@@ -197,11 +202,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $stmt->execute();
 
                         echo "<table>" . PHP_EOL;
-                        echo "<tr><th>Id</th><th>Npa</th><th>Locality</th></tr>" . PHP_EOL;
+                        echo "<tr><th>Id</th><th>Npa</th><th>Locality</th><th>Search Links</th></tr>" . PHP_EOL;
 
-                        // set the resulting array to associative
-                        $result = $stmt->setFetchMode(PDO::FETCH_ASSOC);
-                        foreach (new TableRows(new RecursiveArrayIterator($stmt->fetchAll())) as $k => $v) {
+                        // Add a new column to each row
+                        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                        foreach ($rows as &$row) {
+                            $row["links"] = "<a href='https://www.google.ch/?q=".$row['npa_localite']."'>https://www.google.ch/?q=".$row['npa_localite']."</a>";
+                        }
+
+                        foreach (new TableRows(new RecursiveArrayIterator($rows)) as $k => $v) {
                             echo $v;
                         }
 
